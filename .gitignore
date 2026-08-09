@@ -1,0 +1,12 @@
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+faiss_index/
+uploaded_docs/

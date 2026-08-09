@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KT RAG Agent</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; background: #f5f5f5; }
+  h2 { text-align: center; color: #2b3a4a; }
+  .box { background: white; border-radius: 8px; padding: 16px; margin-top: 16px; border: 1px solid #ddd; }
+  input[type=file] { margin-bottom: 10px; }
+  button { padding: 10px 18px; border: none; background: #2b6fff; color: white; border-radius: 6px; cursor: pointer; }
+  button:disabled { background: #99b6ff; }
+  #chat-log { min-height: 100px; }
+  .msg { margin: 10px 0; padding: 10px 14px; border-radius: 10px; max-width: 85%; white-space: pre-wrap; }
+  .user { background: #dbe9ff; margin-left: auto; text-align: right; }
+  .bot { background: #eee; }
+  #input-row { display: flex; margin-top: 10px; gap: 8px; }
+  #q-input { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+  #status { color: #666; font-style: italic; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h2>KT RAG Agent 📄</h2>
+
+  <div class="box">
+    <strong>1. Upload your PDF knowledge base</strong><br><br>
+    <input type="file" id="pdf-file" accept=".pdf" />
+    <button id="upload-btn">Upload & Index</button>
+    <div id="upload-status"></div>
+  </div>
+
+  <div class="box">
+    <strong>2. Ask questions (answered ONLY from the uploaded PDF)</strong>
+    <div id="chat-log"></div>
+    <div id="input-row">
+      <input type="text" id="q-input" placeholder="Ask a question about the document..." />
+      <button id="ask-btn">Ask</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+<script>
+  const uploadBtn = document.getElementById('upload-btn');
+  const uploadStatus = document.getElementById('upload-status');
+  const askBtn = document.getElementById('ask-btn');
+  const qInput = document.getElementById('q-input');
+  const chatLog = document.getElementById('chat-log');
+  const status = document.getElementById('status');
+
+  uploadBtn.addEventListener('click', async () => {
+    const fileInput = document.getElementById('pdf-file');
+    if (!fileInput.files.length) { uploadStatus.textContent = 'Choose a PDF first.'; return; }
+
+    uploadBtn.disabled = true;
+    uploadStatus.textContent = 'Uploading and indexing... (may take a bit for large PDFs)';
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        uploadStatus.textContent = 'Error: ' + (data.detail || 'Upload failed.');
+      } else {
+        uploadStatus.textContent = `✅ ${data.message} (${data.chunks_indexed} chunks indexed)`;
+      }
+    } catch (err) {
+      uploadStatus.textContent = 'Error: could not reach the server.';
+    }
+    uploadBtn.disabled = false;
+  });
+
+  function addMessage(text, sender) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + sender;
+    div.textContent = text;
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  async function askQuestion() {
+    const question = qInput.value.trim();
+    if (!question) return;
+
+    addMessage(question, 'user');
+    qInput.value = '';
+    askBtn.disabled = true;
+    status.textContent = 'Thinking...';
+
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        addMessage('Error: ' + (data.detail || 'Something went wrong.'), 'bot');
+      } else {
+        addMessage(data.answer, 'bot');
+      }
+    } catch (err) {
+      addMessage('Error: could not reach the server.', 'bot');
+    }
+    status.textContent = '';
+    askBtn.disabled = false;
+  }
+
+  askBtn.addEventListener('click', askQuestion);
+  qInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askQuestion(); });
+</script>
+</body>
+</html>
