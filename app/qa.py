@@ -51,7 +51,7 @@ def answer_question(vectorstore, question: str, top_k: int = 4) -> dict:
     answer = extract_text(response)
 
     sources = [
-        {"page": doc.metadata.get("page", "?"), "snippet": doc.page_content[:150]}
+        {"page": str(doc.metadata.get("page", "?")), "snippet": doc.page_content[:150]}
         for doc, score in results
     ]
 
